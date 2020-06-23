@@ -46,18 +46,8 @@ Resources:
       Tracing: Active
       Policies:
         - AWSXrayWriteOnlyAccess
-        - AWSSecretsManagerGetSecretValuePolicy:
-            SecretArn: !Ref SampleMySQLRDSRootUserSecret
-        - Statement:
-            - Effect: Allow
-              Action:
-                - rds-data:BatchExecuteStatement
-                - rds-data:BeginTransaction
-                - rds-data:CommitTransaction
-                - rds-data:ExecuteStatement
-                - rds-data:RollbackTransaction
-              Resource:
-                - !Sub arn:aws:rds:${AWS::Region}:${AWS::AccountId}:cluster:${SampleMySQLRDS}
+        - DynamoDBCrudPolicy:
+            TableName: !Ref Items
       Events:
         QuickstartApiPOSTnewItems:
           Type: Api
@@ -67,11 +57,8 @@ Resources:
             RestApiId: !Ref QuickstartApi
       Environment:
         Variables:
-          DB_ID: !Ref SampleMySQLRDS
-          DB_ADDRESS: !GetAtt SampleMySQLRDS.Endpoint.Address
-          DB_PORT: !GetAtt SampleMySQLRDS.Endpoint.Port
-          DB_ARN: !Sub arn:aws:rds:${AWS::Region}:${AWS::AccountId}:cluster:${SampleMySQLRDS}
-          DB_ROOT_USER_SECRET_ARN: !Ref SampleMySQLRDSRootUserSecret
+          TABLE_NAME: !Ref Items
+          TABLE_ARN: !GetAtt Items.Arn
   getItems:
     Type: AWS::Serverless::Function
     Properties:
@@ -87,18 +74,8 @@ Resources:
       Tracing: Active
       Policies:
         - AWSXrayWriteOnlyAccess
-        - AWSSecretsManagerGetSecretValuePolicy:
-            SecretArn: !Ref SampleMySQLRDSRootUserSecret
-        - Statement:
-            - Effect: Allow
-              Action:
-                - rds-data:BatchExecuteStatement
-                - rds-data:BeginTransaction
-                - rds-data:CommitTransaction
-                - rds-data:ExecuteStatement
-                - rds-data:RollbackTransaction
-              Resource:
-                - !Sub arn:aws:rds:${AWS::Region}:${AWS::AccountId}:cluster:${SampleMySQLRDS}
+        - DynamoDBCrudPolicy:
+            TableName: !Ref Items
       Events:
         QuickstartApiGETitems:
           Type: Api
@@ -108,73 +85,20 @@ Resources:
             RestApiId: !Ref QuickstartApi
       Environment:
         Variables:
-          DB_ID: !Ref SampleMySQLRDS
-          DB_ADDRESS: !GetAtt SampleMySQLRDS.Endpoint.Address
-          DB_PORT: !GetAtt SampleMySQLRDS.Endpoint.Port
-          DB_ARN: !Sub arn:aws:rds:${AWS::Region}:${AWS::AccountId}:cluster:${SampleMySQLRDS}
-          DB_ROOT_USER_SECRET_ARN: !Ref SampleMySQLRDSRootUserSecret
-  SampleMySQLRDS:
-    Type: AWS::RDS::DBCluster
+          TABLE_NAME: !Ref Items
+          TABLE_ARN: !GetAtt Items.Arn
+  Items:
+    Type: AWS::DynamoDB::Table
     Properties:
-      BackupRetentionPeriod: 1
-      DBSubnetGroupName: !Ref SampleMySQLRDSSubnetGroup
-      Engine: aurora
-      EngineMode: serverless
-      MasterUsername: !Sub '{{resolve:secretsmanager:${SampleMySQLRDSRootUserSecret}:SecretString:username}}'
-      MasterUserPassword: !Sub '{{resolve:secretsmanager:${SampleMySQLRDSRootUserSecret}:SecretString:password}}'
-      EnableHttpEndpoint: true
-      ScalingConfiguration:
-        AutoPause: false
-        MinCapacity: 2
-        MaxCapacity: 256
-      StorageEncrypted: true
-      VpcSecurityGroupIds:
-        - !Ref SampleMySQLRDSSecurityGroup
-  SampleMySQLRDSSubnetGroup:
-    Type: AWS::RDS::DBSubnetGroup
-    Properties:
-      DBSubnetGroupDescription: !Sub
-        - Stack ${StackTagName} Environment ${EnvironmentTagName} Database ${ResourceName} VPC Subnets
-        - ResourceName: SampleMySQLRDS
-      SubnetIds: !Ref DefaultVPCSubnets
-      Tags:
-        - Key: Name
-          Value: !Sub
-            - Stack ${StackTagName} Environment ${EnvironmentTagName} Database ${ResourceName} VPC Subnets
-            - ResourceName: SampleMySQLRDS
-  SampleMySQLRDSSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: Database Security Group
-      SecurityGroupIngress:
-        CidrIp: 0.0.0.0/0
-        FromPort: 3306
-        IpProtocol: tcp
-        ToPort: 3306
-      Tags:
-        - Key: Name
-          Value: !Sub
-            - Stack ${StackTagName} Environment ${EnvironmentTagName} Database ${ResourceName} VPC Security Group
-            - ResourceName: SampleMySQLRDS
-      VpcId: !Ref DefaultVPCId
-  SampleMySQLRDSRootUserSecret:
-    Type: AWS::SecretsManager::Secret
-    Properties:
-      Description: !Sub
-        - Root user login info for Stack ${StackTagName} Environment ${EnvironmentTagName} Database ${ResourceName}
-        - ResourceName: SampleMySQLRDS
-      GenerateSecretString:
-        SecretStringTemplate: '{"username": "root"}'
-        GenerateStringKey: password
-        PasswordLength: 16
-        ExcludeCharacters: '"@/\'
-      Name: !Sub /${EnvironmentTagName}/${StackTagName}/SampleMySQLRDS/RootUser
-  SampleMySQLRDSRootUserSecretAttachment:
-    Type: AWS::SecretsManager::SecretTargetAttachment
-    Properties:
-      SecretId: !Ref SampleMySQLRDSRootUserSecret
-      TargetId: !Ref SampleMySQLRDS
-      TargetType: AWS::RDS::DBCluster
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
 Parameters:
   StackTagName:
     Type: String
@@ -185,9 +109,3 @@ Parameters:
   EnvironmentAPIGatewayStageName:
     Type: String
     Description: Environment name used for API Gateway Stage names (injected by Stackery at deployment time)
-  DefaultVPCId:
-    Type: AWS::EC2::VPC::Id
-    Description: AWS account-specific default VPC ID (injected by Stackery at deployment time)
-  DefaultVPCSubnets:
-    Type: List<AWS::EC2::Subnet::Id>
-    Description: AWS account-specific default VPC subnets (injected by Stackery at deployment time)
