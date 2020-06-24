@@ -101,15 +101,6 @@ Resources:
         SubnetIds:
           - !Ref InternalVPCPrivateSubnet1
           - !Ref InternalVPCPrivateSubnet2
-  CallSearch:
-    Type: AWS::Elasticsearch::Domain
-    Properties:
-      VPCOptions:
-        SecurityGroupIds:
-          - !GetAtt InternalVPC.DefaultSecurityGroup
-        SubnetIds:
-          - !Ref InternalVPCPrivateSubnet1
-          - !Ref InternalVPCPrivateSubnet2
   Items:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -341,6 +332,46 @@ Resources:
     Properties:
       RouteTableId: !Ref InternalVPCPublicSubnetsRouteTable
       SubnetId: !Ref InternalVPCPublicSubnet2
+  CallSearch:
+    Type: AWS::Elasticsearch::Domain
+    Properties:
+      DomainName: test
+      ElasticsearchClusterConfig:
+        DedicatedMasterEnabled: 'true'
+        InstanceCount: '2'
+        ZoneAwarenessEnabled: 'true'
+        InstanceType: m4.large.elasticsearch
+        DedicatedMasterType: c4.large.elasticsearch
+        DedicatedMasterCount: '3'
+      ElasticsearchVersion: 7.4
+      EBSOptions:
+        EBSEnabled: true
+        VolumeSize: 20
+        VolumeType: gp2
+      AccessPolicies:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: '904601396794'
+            Action: es:ESHttp*
+            Resource: arn:aws:es:us-west-1:904601396794:domain/test/*
+      LogPublishingOptions:
+        SEARCH_SLOW_LOGS:
+          CloudWatchLogsLogGroupArn: arn:aws:logs:us-west-1:904601396794:log-group:test-1
+          Enabled: true
+        INDEX_SLOW_LOGS:
+          CloudWatchLogsLogGroupArn: arn:aws:logs:us-west-1:904601396794:log-group:test-2
+          Enabled: true
+        ES_APPLICATION_LOGS:
+          CloudWatchLogsLogGroupArn: arn:aws:logs:us-west-1:904601396794:log-group:test-3
+          Enabled: true
+      VPCOptions:
+        SecurityGroupIds:
+          - !GetAtt InternalVPC.DefaultSecurityGroup
+        SubnetIds:
+          - !Ref InternalVPCPrivateSubnet1
+          - !Ref InternalVPCPrivateSubnet2
 Parameters:
   StackTagName:
     Type: String
