@@ -29,8 +29,8 @@ Resources:
       EndpointConfiguration: REGIONAL
       TracingEnabled: true
       Cors:
-        AllowHeaders: "'Authorization,Content-Type'"
-        AllowOrigin: "'*'"
+        AllowHeaders: '''Authorization,Content-Type'''
+        AllowOrigin: '''*'''
   newItem:
     Type: AWS::Serverless::Function
     Properties:
@@ -39,7 +39,7 @@ Resources:
         - Stack ${StackTagName} Environment ${EnvironmentTagName} Function ${ResourceName}
         - ResourceName: newItem
       CodeUri: src/newItem
-      Handler: newItem.handler # name needs to be unique
+      Handler: newItem.handler
       Runtime: nodejs12.x
       MemorySize: 3008
       Timeout: 30
@@ -48,6 +48,7 @@ Resources:
         - AWSXrayWriteOnlyAccess
         - DynamoDBCrudPolicy:
             TableName: !Ref Items
+        - AWSLambdaENIManagementAccess
       Events:
         QuickstartApiPOSTnewItems:
           Type: Api
@@ -59,6 +60,12 @@ Resources:
         Variables:
           TABLE_NAME: !Ref Items
           TABLE_ARN: !GetAtt Items.Arn
+      VpcConfig:
+        SecurityGroupIds:
+          - !GetAtt InternalVPC.DefaultSecurityGroup
+        SubnetIds:
+          - !Ref InternalVPCPrivateSubnet1
+          - !Ref InternalVPCPrivateSubnet2
   getItems:
     Type: AWS::Serverless::Function
     Properties:
@@ -67,7 +74,7 @@ Resources:
         - Stack ${StackTagName} Environment ${EnvironmentTagName} Function ${ResourceName}
         - ResourceName: getItems
       CodeUri: src/getItems
-      Handler: getItems.handler # name needs to be unique
+      Handler: getItems.handler
       Runtime: nodejs12.x
       MemorySize: 3008
       Timeout: 30
@@ -76,6 +83,7 @@ Resources:
         - AWSXrayWriteOnlyAccess
         - DynamoDBCrudPolicy:
             TableName: !Ref Items
+        - AWSLambdaENIManagementAccess
       Events:
         QuickstartApiGETitems:
           Type: Api
@@ -87,6 +95,12 @@ Resources:
         Variables:
           TABLE_NAME: !Ref Items
           TABLE_ARN: !GetAtt Items.Arn
+      VpcConfig:
+        SecurityGroupIds:
+          - !GetAtt InternalVPC.DefaultSecurityGroup
+        SubnetIds:
+          - !Ref InternalVPCPrivateSubnet1
+          - !Ref InternalVPCPrivateSubnet2
   Items:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -99,6 +113,225 @@ Resources:
           KeyType: HASH
       StreamSpecification:
         StreamViewType: NEW_AND_OLD_IMAGES
+  InternalVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      Tags:
+        - Key: Name
+          Value: !Sub
+            - Stack ${StackTagName} Environment ${EnvironmentTagName} Virtual Network ${ResourceName}
+            - ResourceName: InternalVPC
+  InternalVPCPrivateSubnet1:
+    Metadata:
+      StackeryManaged: true
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select
+        - 0
+        - !GetAZs ''
+      CidrBlock: !Select
+        - 0
+        - !Cidr
+          - 10.0.0.0/16
+          - 4
+          - 14
+      Tags:
+        - Key: Name
+          Value: !Sub
+            - Stack ${StackTagName} Environment ${EnvironmentTagName} Virtual Network ${ResourceName} Private Subnet 1
+            - ResourceName: InternalVPC
+      VpcId: !Ref InternalVPC
+  InternalVPCPrivateSubnet2:
+    Metadata:
+      StackeryManaged: true
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select
+        - 1
+        - !GetAZs ''
+      CidrBlock: !Select
+        - 1
+        - !Cidr
+          - 10.0.0.0/16
+          - 4
+          - 14
+      Tags:
+        - Key: Name
+          Value: !Sub
+            - Stack ${StackTagName} Environment ${EnvironmentTagName} Virtual Network ${ResourceName} Private Subnet 2
+            - ResourceName: InternalVPC
+      VpcId: !Ref InternalVPC
+  InternalVPCPublicSubnet1:
+    Metadata:
+      StackeryManaged: true
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select
+        - 0
+        - !GetAZs ''
+      CidrBlock: !Select
+        - 2
+        - !Cidr
+          - 10.0.0.0/16
+          - 4
+          - 14
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub
+            - Stack ${StackTagName} Environment ${EnvironmentTagName} Virtual Network ${ResourceName} Public Subnet 1
+            - ResourceName: InternalVPC
+      VpcId: !Ref InternalVPC
+  InternalVPCPublicSubnet2:
+    Metadata:
+      StackeryManaged: true
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select
+        - 1
+        - !GetAZs ''
+      CidrBlock: !Select
+        - 3
+        - !Cidr
+          - 10.0.0.0/16
+          - 4
+          - 14
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub
+            - Stack ${StackTagName} Environment ${EnvironmentTagName} Virtual Network ${ResourceName} Public Subnet 2
+            - ResourceName: InternalVPC
+      VpcId: !Ref InternalVPC
+  InternalVPCPrivateSubnet1NatGatewayEIP:
+    Metadata:
+      StackeryManaged: true
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+  InternalVPCPrivateSubnet1NatGateway:
+    Metadata:
+      StackeryManaged: true
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt InternalVPCPrivateSubnet1NatGatewayEIP.AllocationId
+      SubnetId: !Ref InternalVPCPublicSubnet1
+  InternalVPCPrivateSubnet1RouteTable:
+    Metadata:
+      StackeryManaged: true
+    Type: AWS::EC2::RouteTable
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub
+            - Stack ${StackTagName} Environment ${EnvironmentTagName} Virtual Network ${ResourceName} Private Subnet 1 Route Table
+            - ResourceName: InternalVPC
+      VpcId: !Ref InternalVPC
+  InternalVPCPrivateSubnet1NatGatewayRoute:
+    Metadata:
+      StackeryManaged: true
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref InternalVPCPrivateSubnet1NatGateway
+      RouteTableId: !Ref InternalVPCPrivateSubnet1RouteTable
+  InternalVPCPrivateSubnet1RouteTableAssociation:
+    Metadata:
+      StackeryManaged: true
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref InternalVPCPrivateSubnet1RouteTable
+      SubnetId: !Ref InternalVPCPrivateSubnet1
+  InternalVPCPrivateSubnet2NatGatewayEIP:
+    Metadata:
+      StackeryManaged: true
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+  InternalVPCPrivateSubnet2NatGateway:
+    Metadata:
+      StackeryManaged: true
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt InternalVPCPrivateSubnet2NatGatewayEIP.AllocationId
+      SubnetId: !Ref InternalVPCPublicSubnet2
+  InternalVPCPrivateSubnet2RouteTable:
+    Metadata:
+      StackeryManaged: true
+    Type: AWS::EC2::RouteTable
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub
+            - Stack ${StackTagName} Environment ${EnvironmentTagName} Virtual Network ${ResourceName} Private Subnet 2 Route Table
+            - ResourceName: InternalVPC
+      VpcId: !Ref InternalVPC
+  InternalVPCPrivateSubnet2NatGatewayRoute:
+    Metadata:
+      StackeryManaged: true
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref InternalVPCPrivateSubnet2NatGateway
+      RouteTableId: !Ref InternalVPCPrivateSubnet2RouteTable
+  InternalVPCPrivateSubnet2RouteTableAssociation:
+    Metadata:
+      StackeryManaged: true
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref InternalVPCPrivateSubnet2RouteTable
+      SubnetId: !Ref InternalVPCPrivateSubnet2
+  InternalVPCPublicSubnetsInternetGateway:
+    Metadata:
+      StackeryManaged: true
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub
+            - Stack ${StackTagName} Environment ${EnvironmentTagName} Virtual Network ${ResourceName} Public Subnets Internet Gateway
+            - ResourceName: InternalVPC
+  InternalVPCPublicSubnetsInternetGatewayAttachment:
+    Metadata:
+      StackeryManaged: true
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternalVPCPublicSubnetsInternetGateway
+      VpcId: !Ref InternalVPC
+  InternalVPCPublicSubnetsRouteTable:
+    Metadata:
+      StackeryManaged: true
+    Type: AWS::EC2::RouteTable
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub
+            - Stack ${StackTagName} Environment ${EnvironmentTagName} Virtual Network ${ResourceName} Public Subnets Route Table
+            - ResourceName: InternalVPC
+      VpcId: !Ref InternalVPC
+  InternalVPCPublicSubnetsInternetGatewayRoute:
+    Metadata:
+      StackeryManaged: true
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternalVPCPublicSubnetsInternetGateway
+      RouteTableId: !Ref InternalVPCPublicSubnetsRouteTable
+  InternalVPCPublicSubnet1RouteTableAssociation:
+    Metadata:
+      StackeryManaged: true
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref InternalVPCPublicSubnetsRouteTable
+      SubnetId: !Ref InternalVPCPublicSubnet1
+  InternalVPCPublicSubnet2RouteTableAssociation:
+    Metadata:
+      StackeryManaged: true
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref InternalVPCPublicSubnetsRouteTable
+      SubnetId: !Ref InternalVPCPublicSubnet2
 Parameters:
   StackTagName:
     Type: String
