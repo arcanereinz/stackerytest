@@ -335,7 +335,7 @@ Resources:
   CallSearch:
     Type: AWS::Elasticsearch::Domain
     Properties:
-      DomainName: test
+      DomainName: callsearch
       ElasticsearchClusterConfig:
         DedicatedMasterEnabled: 'true'
         InstanceCount: '2'
@@ -353,18 +353,18 @@ Resources:
         Statement:
           - Effect: Allow
             Principal:
-              AWS: '904601396794'
+              AWS: '*'
             Action: es:ESHttp*
-            Resource: arn:aws:es:us-west-1:904601396794:domain/test/*
+            Resource: arn:aws:es:us-east-2:937845247459:domain/callsearch/*
       LogPublishingOptions:
         SEARCH_SLOW_LOGS:
-          CloudWatchLogsLogGroupArn: arn:aws:logs:us-west-1:904601396794:log-group:test-1
+          CloudWatchLogsLogGroupArn: arn:aws:logs:us-east-2:937845247459:log-group:test-1
           Enabled: true
         INDEX_SLOW_LOGS:
-          CloudWatchLogsLogGroupArn: arn:aws:logs:us-west-1:904601396794:log-group:test-2
+          CloudWatchLogsLogGroupArn: arn:aws:logs:us-east-2:937845247459:log-group:test-2
           Enabled: true
         ES_APPLICATION_LOGS:
-          CloudWatchLogsLogGroupArn: arn:aws:logs:us-west-1:904601396794:log-group:test-3
+          CloudWatchLogsLogGroupArn: arn:aws:logs:us-east-2:937845247459:log-group:test-3
           Enabled: true
       VPCOptions:
         SecurityGroupIds:
