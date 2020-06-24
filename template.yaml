@@ -356,16 +356,6 @@ Resources:
               AWS: '*'
             Action: es:ESHttp*
             Resource: arn:aws:es:us-east-2:937845247459:domain/callsearch/*
-      LogPublishingOptions:
-        SEARCH_SLOW_LOGS:
-          CloudWatchLogsLogGroupArn: arn:aws:logs:us-east-2:937845247459:log-group:test-1
-          Enabled: true
-        INDEX_SLOW_LOGS:
-          CloudWatchLogsLogGroupArn: arn:aws:logs:us-east-2:937845247459:log-group:test-2
-          Enabled: true
-        ES_APPLICATION_LOGS:
-          CloudWatchLogsLogGroupArn: arn:aws:logs:us-east-2:937845247459:log-group:test-3
-          Enabled: true
       VPCOptions:
         SecurityGroupIds:
           - !GetAtt InternalVPC.DefaultSecurityGroup
