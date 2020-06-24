@@ -101,6 +101,15 @@ Resources:
         SubnetIds:
           - !Ref InternalVPCPrivateSubnet1
           - !Ref InternalVPCPrivateSubnet2
+  CallSearch:
+    Type: AWS::Elasticsearch::Domain
+    Properties:
+      VpcConfig:
+        SecurityGroupIds:
+          - !GetAtt InternalVPC.DefaultSecurityGroup
+        SubnetIds:
+          - !Ref InternalVPCPrivateSubnet1
+          - !Ref InternalVPCPrivateSubnet2
   Items:
     Type: AWS::DynamoDB::Table
     Properties:
