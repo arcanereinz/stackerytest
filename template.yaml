@@ -537,7 +537,7 @@ Resources:
             sed -i -e "s/region = us-east-1/region = $region/g" /etc/awslogs/awscli.conf
 
             --==BOUNDARY==
-          - SSHKeys: '{"nchan":"AAAAB3NzaC1yc2EAAAADAQABAAABgQDEL0i/b/fgoM5Gu+eC/1aWYzV43Wrf/lXFAXxPxstL0U2QhTJiR8JW9MBmCth11Tc1PylLqAT//kPXnmNHBH0afuIjEYBrqfrMJ6ZGDkG5msA+ofLT1aw61qhNRm9V1K/bo+uLEiLarAADs0q4eAcJehx3XOQWt3VVbPzoCPEuDm6FNqVnKZb+zhkfnMozTN0V93rcThiKtmrt5ynviTFirVFDJp/BW1X72Q1lJnvW92t9lXugL1GyCQuwWdBSX94PmRGBwVaVSpLPPrlhyIs6HFTjY2buVRUtlqlQth1TUZtvRJcmqM+JgtYVJXxesxOkUPGx25gMfen6XgTyegkmgqIBHFuZ4lk6mk+WmgY7VBlrcFs9xjB+iOULBNeyPUe/fuw8xQ5zEX0xuLbHiG5jKyGOSQaea0LnjdEBUYzf6KDVwgDNDDRv4UBBvgfnZXMJetzwJmLa7ccipHjL7BKx02AHP4iSI1MvUd6xawloAveiwnrpypP8Q3Cw0eM/CKs="}'
+          - SSHKeys: '{"nchan":"ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQClV1z02TqZebVXpK7I+WAbmknB/tYX2j5R9Z7HmWKTcxt6PMnozZbIWQp0qRWaGX25Kw8pzwhqlZylUPZpn4sge1UGkTDF+uanlHShUWuGVXwFCsYhleRdxb/gd8tlqwGhWFjv1JZ6hSML4MB9YwbAb+Qb86IBwQFkZ1t3y79frzR3rNBIv7mfmDKu3qI0s5ek91O5AqfZJYnjA9CNV856LDskjs/L3ABjStc+SoHULjymqKYv7GkqaQ4nUTZeu67JH6/8juPltXMpDmKnyGXpFdZerAys7ibMCltMLlYinopiprHVl5EktvoV2Bf9PWkFu8aML+8zuB7uA+fCrFb4PvgufhnBPu2TiZyuZc1Mi4s9byTv5hdDULikaUSZut33Y5D4H2232MlCzYoLeou7pG+NLqDopK+ZI8udT2W2FqyvU6fJ+LgA3Wnl3g9fh6L9C/TfqgqpRXuNk++q20wyxPAyr8MMn+QOtEcZaP2CPk0dY17fUp9Sx0ZkHr+KiKs= nchan"}'
             ResourceId: Bastion
   BastionSSMAgentAutoUpdate:
     Type: AWS::SSM::Association
