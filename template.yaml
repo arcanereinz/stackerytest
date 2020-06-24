@@ -104,7 +104,7 @@ Resources:
   CallSearch:
     Type: AWS::Elasticsearch::Domain
     Properties:
-      VpcConfig:
+      VPCOptions:
         SecurityGroupIds:
           - !GetAtt InternalVPC.DefaultSecurityGroup
         SubnetIds:
