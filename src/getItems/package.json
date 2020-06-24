@@ -3,5 +3,9 @@
   "version": "1.0.0",
   "devDependencies": {
     "aws-sdk": "~2"
+  },
+  "scripts": {
+    "start": "stackery local invoke -e test --aws-profile=arcanereinz --input-file '../events/call.json'",
+    "deploy": "stackery deploy -e test --aws-profile=arcanereinz --strategy local"
   }
 }

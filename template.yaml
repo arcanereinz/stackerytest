@@ -29,8 +29,8 @@ Resources:
       EndpointConfiguration: REGIONAL
       TracingEnabled: true
       Cors:
-        AllowHeaders: '''Authorization,Content-Type'''
-        AllowOrigin: '''*'''
+        AllowHeaders: "'Authorization,Content-Type'"
+        AllowOrigin: "'*'"
   newItem:
     Type: AWS::Serverless::Function
     Properties:
@@ -39,7 +39,7 @@ Resources:
         - Stack ${StackTagName} Environment ${EnvironmentTagName} Function ${ResourceName}
         - ResourceName: newItem
       CodeUri: src/newItem
-      Handler: index.handler
+      Handler: newItem.handler # name needs to be unique
       Runtime: nodejs12.x
       MemorySize: 3008
       Timeout: 30
@@ -67,7 +67,7 @@ Resources:
         - Stack ${StackTagName} Environment ${EnvironmentTagName} Function ${ResourceName}
         - ResourceName: getItems
       CodeUri: src/getItems
-      Handler: index.handler
+      Handler: getItems.handler # name needs to be unique
       Runtime: nodejs12.x
       MemorySize: 3008
       Timeout: 30
