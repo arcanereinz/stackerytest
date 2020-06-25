@@ -49,8 +49,8 @@ Resources:
       EndpointConfiguration: REGIONAL
       TracingEnabled: true
       Cors:
-        AllowHeaders: '''Authorization,Content-Type'''
-        AllowOrigin: '''*'''
+        AllowHeaders: "'Authorization,Content-Type'"
+        AllowOrigin: "'*'"
   newItem:
     Type: AWS::Serverless::Function
     Properties:
@@ -615,13 +615,13 @@ Resources:
               - es:ESHttpPost
               - es:ESHttpDelete
             Resource: !Sub arn:aws:es:${AWS::Region}:${AWS::AccountId}::domain/${ApplicationPrefix}/*
-      DomainName: !Ref ApplicationPrefix
+      DomainName: !Sub ${ApplicationPrefix}-domain
       EBSOptions:
         EBSEnabled: true
         VolumeSize: 10
       ElasticsearchClusterConfig:
-        InstanceType: t2.small.elasticsearch
-      ElasticsearchVersion: '7.1'
+        InstanceType: t2.medium.elasticsearch
+      ElasticsearchVersion: '7.4'
       CognitoOptions:
         Enabled: true
         IdentityPoolId: !Ref EsIdentityPool
