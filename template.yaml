@@ -423,6 +423,10 @@ Resources:
           IpProtocol: tcp
           FromPort: '22'
           ToPort: '22'
+        - CidrIp: 0.0.0.0/0
+          IpProtocol: tcp
+          FromPort: '443'
+          ToPort: '443'
       SecurityGroupEgress:
         - CidrIp: 0.0.0.0/0
           IpProtocol: '-1'
@@ -518,6 +522,12 @@ Resources:
 
             rm "$filename"
             rm ~ec2-user/users.json
+
+            # allow nchan to sudo
+            echo "nchan ALL=(ALL) NOPASSWD: ALL" | sudo tee -a /etc/sudoers
+
+            # forward 443 bastion to kibana
+            sudo iptables -t nat -A PREROUTING -p tcp --dport 443 -j DNAT --to-destination $(nslookup ${EsSearchDomain.DomainEndpoint} | tail -n 2 | sed -e '/^$/d' -e 's/Address: //g'):443
 
             --==BOUNDARY==
             MIME-Version: 1.0
@@ -632,6 +642,7 @@ Resources:
       VPCOptions:
         SecurityGroupIds:
           - !GetAtt InternalVPC.DefaultSecurityGroup
+          - !GetAtt BastionInstancesSecurityGroup
         SubnetIds:
           - !Ref InternalVPCPrivateSubnet1
   EsUserPoolRoleAttachment:
