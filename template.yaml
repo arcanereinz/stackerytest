@@ -688,7 +688,7 @@ Parameters:
     Description: Prefix for the Amazon Cognito domain and the Amazon Elasticsearch Service domain
     MaxLength: 20
     MinLength: 3
-    Defaul: kixie
+    Default: kixie
 Outputs:
   createUserUrl:
     Description: Create a new user in the user pool here.
