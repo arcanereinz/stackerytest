@@ -11,9 +11,9 @@ Parameters:
   EnvironmentAPIGatewayStageName:
     Type: String
     Description: Environment name used for API Gateway Stage names (injected by Stackery at deployment time)
-  AmazonLinux2ImageId:
+  AmazonLinuxNATImageId:
     Type: AWS::EC2::Image::Id
-    Description: Latest Amazon Linux 2 AMI ID (injected by Stackery at deployment time) #amzn-ami-vpc-nat-2018.03
+    Description: Latest Amazon Linux VPC AMI ID (amzn-ami-vpc-nat-2018.03)
     Default: ami-03c91470bf330c786
   ApplicationPrefix:
     Type: String
@@ -436,7 +436,7 @@ Resources:
     Type: AWS::AutoScaling::LaunchConfiguration
     Properties:
       IamInstanceProfile: !Ref BastionIAMInstanceProfile
-      ImageId: !Ref AmazonLinux2ImageId
+      ImageId: !Ref AmazonLinuxNATImageId
       InstanceType: t2.nano
       SecurityGroups:
         - !Ref BastionInstancesSecurityGroup
