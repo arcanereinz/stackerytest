@@ -354,6 +354,105 @@ Resources:
     Properties:
       RouteTableId: !Ref InternalVPCPublicSubnetsRouteTable
       SubnetId: !Ref InternalVPCPublicSubnet2
+  EsUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: true
+      AutoVerifiedAttributes:
+        - email
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+      UsernameAttributes:
+        - email
+  EsCognitoDomain:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties:
+      Domain: !Join
+        - ''
+        - - !Ref ApplicationPrefix
+          - '-'
+          - !Select
+            - 4
+            - !Split
+              - '-'
+              - !Select
+                - 2
+                - !Split
+                  - /
+                  - !Ref AWS::StackId
+      UserPoolId: !Ref EsUserPool
+  EsIdentityPool:
+    Type: AWS::Cognito::IdentityPool
+    Properties:
+      AllowUnauthenticatedIdentities: false
+      CognitoIdentityProviders: []
+  EsAuthRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                cognito-identity.amazonaws.com:aud: !Ref EsIdentityPool
+              ForAnyValue:StringLike:
+                cognito-identity.amazonaws.com:amr: authenticated
+            Effect: Allow
+            Principal:
+              Federated: cognito-identity.amazonaws.com
+        Version: 2012-10-17
+  EsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: es.amazonaws.com
+        Version: 2012-10-17
+      ManagedPolicyArns:
+        - !Sub arn:${AWS::Partition}:iam::aws:policy/AmazonESCognitoAccess
+  EsSearchDomain:
+    Type: AWS::Elasticsearch::Domain
+    Properties:
+      AccessPolicies:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !GetAtt EsAuthRole.Arn
+            Action:
+              - es:ESHttpGet
+              - es:ESHttpPut
+              - es:ESHttpPost
+              - es:ESHttpDelete
+            Resource: !Sub arn:aws:es:${AWS::Region}:${AWS::AccountId}::domain/${ApplicationPrefix}/*
+      DomainName: !Sub ${ApplicationPrefix}-domain
+      EBSOptions:
+        EBSEnabled: true
+        VolumeSize: 10
+      ElasticsearchClusterConfig:
+        InstanceType: t2.medium.elasticsearch
+      ElasticsearchVersion: '7.4'
+      CognitoOptions:
+        Enabled: true
+        IdentityPoolId: !Ref EsIdentityPool
+        RoleArn: !GetAtt EsRole.Arn
+        UserPoolId: !Ref EsUserPool
+      VPCOptions:
+        SecurityGroupIds:
+          - !GetAtt InternalVPC.DefaultSecurityGroup
+        SubnetIds:
+          - !Ref InternalVPCPrivateSubnet1
+  EsUserPoolRoleAttachment:
+    Type: AWS::Cognito::IdentityPoolRoleAttachment
+    Properties:
+      IdentityPoolId: !Ref EsIdentityPool
+      Roles:
+        authenticated: !GetAtt EsAuthRole.Arn
   Bastion:
     Type: AWS::AutoScaling::AutoScalingGroup
     Metadata:
@@ -545,105 +644,6 @@ Resources:
         - Key: tag:aws:autoscaling:groupName
           Values:
             - !Ref Bastion
-  EsUserPool:
-    Type: AWS::Cognito::UserPool
-    Properties:
-      AdminCreateUserConfig:
-        AllowAdminCreateUserOnly: true
-      AutoVerifiedAttributes:
-        - email
-      Policies:
-        PasswordPolicy:
-          MinimumLength: 8
-      UsernameAttributes:
-        - email
-  EsCognitoDomain:
-    Type: AWS::Cognito::UserPoolDomain
-    Properties:
-      Domain: !Join
-        - ''
-        - - !Ref ApplicationPrefix
-          - '-'
-          - !Select
-            - 4
-            - !Split
-              - '-'
-              - !Select
-                - 2
-                - !Split
-                  - /
-                  - !Ref AWS::StackId
-      UserPoolId: !Ref EsUserPool
-  EsIdentityPool:
-    Type: AWS::Cognito::IdentityPool
-    Properties:
-      AllowUnauthenticatedIdentities: false
-      CognitoIdentityProviders: []
-  EsAuthRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Statement:
-          - Action: sts:AssumeRoleWithWebIdentity
-            Condition:
-              StringEquals:
-                cognito-identity.amazonaws.com:aud: !Ref EsIdentityPool
-              ForAnyValue:StringLike:
-                cognito-identity.amazonaws.com:amr: authenticated
-            Effect: Allow
-            Principal:
-              Federated: cognito-identity.amazonaws.com
-        Version: 2012-10-17
-  EsRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Statement:
-          - Action: sts:AssumeRole
-            Effect: Allow
-            Principal:
-              Service: es.amazonaws.com
-        Version: 2012-10-17
-      ManagedPolicyArns:
-        - !Sub arn:${AWS::Partition}:iam::aws:policy/AmazonESCognitoAccess
-  EsSearchDomain:
-    Type: AWS::Elasticsearch::Domain
-    Properties:
-      AccessPolicies:
-        Version: 2012-10-17
-        Statement:
-          - Effect: Allow
-            Principal:
-              AWS: !GetAtt EsAuthRole.Arn
-            Action:
-              - es:ESHttpGet
-              - es:ESHttpPut
-              - es:ESHttpPost
-              - es:ESHttpDelete
-            Resource: !Sub arn:aws:es:${AWS::Region}:${AWS::AccountId}::domain/${ApplicationPrefix}/*
-      DomainName: !Sub ${ApplicationPrefix}-domain
-      EBSOptions:
-        EBSEnabled: true
-        VolumeSize: 10
-      ElasticsearchClusterConfig:
-        InstanceType: t2.medium.elasticsearch
-      ElasticsearchVersion: '7.4'
-      CognitoOptions:
-        Enabled: true
-        IdentityPoolId: !Ref EsIdentityPool
-        RoleArn: !GetAtt EsRole.Arn
-        UserPoolId: !Ref EsUserPool
-      VPCOptions:
-        SecurityGroupIds:
-          - !GetAtt InternalVPC.DefaultSecurityGroup
-        SubnetIds:
-          - !Ref InternalVPCPrivateSubnet1
-  EsUserPoolRoleAttachment:
-    Type: AWS::Cognito::IdentityPoolRoleAttachment
-    Properties:
-      IdentityPoolId: !Ref EsIdentityPool
-      Roles:
-        authenticated: !GetAtt EsAuthRole.Arn
 Outputs:
   createUserUrl:
     Description: Create a new user in the user pool here.
