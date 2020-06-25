@@ -429,7 +429,7 @@ Resources:
               - es:ESHttpPut
               - es:ESHttpPost
               - es:ESHttpDelete
-            Resource: !Sub arn:aws:es:${AWS::Region}:${AWS::AccountId}::domain/${ApplicationPrefix}/*
+            Resource: !Sub arn:aws:es:${AWS::Region}:${AWS::AccountId}:domain/${ApplicationPrefix}/*
       DomainName: !Sub ${ApplicationPrefix}
       EBSOptions:
         EBSEnabled: true
