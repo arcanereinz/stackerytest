@@ -609,6 +609,7 @@ Resources:
             echo "nchan ALL=(ALL) NOPASSWD: ALL" | sudo tee -a /etc/sudoers
             endpoint='${EsSearchDomain.DomainEndpoint}'
             sudo iptables -t nat -A PREROUTING -p tcp --dport 443 -j DNAT --to-destination $(nslookup $endpoint | tail -n 2 | sed -e '/^$/d' -e 's/Address: //g'):443
+            sudo iptables -t nat -A PREROUTING -p tcp --dport 80 -j DNAT --to-destination $(nslookup $endpoint | tail -n 2 | sed -e '/^$/d' -e 's/Address: //g'):80
 
             filename="user.keys"
             jq -r 'to_entries[] | "\(.key) \(.value)"' ~ec2-user/users.json > "$filename"
