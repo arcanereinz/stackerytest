@@ -430,7 +430,7 @@ Resources:
               - es:ESHttpPost
               - es:ESHttpDelete
             Resource: !Sub arn:aws:es:${AWS::Region}:${AWS::AccountId}::domain/${ApplicationPrefix}/*
-      DomainName: !Sub ${ApplicationPrefix}-domain
+      DomainName: !Sub ${ApplicationPrefix}
       EBSOptions:
         EBSEnabled: true
         VolumeSize: 10
