@@ -1,3 +1,4 @@
+# NOTE: must delete all components that uses VPC to delete stack and remove domain name from elastic search
 AWSTemplateFormatVersion: 2010-09-09
 Transform: AWS::Serverless-2016-10-31
 Parameters:
