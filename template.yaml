@@ -445,6 +445,7 @@ Resources:
       VPCOptions:
         SecurityGroupIds:
           - !GetAtt InternalVPC.DefaultSecurityGroup
+          - !Ref BastionInstancesSecurityGroup
         SubnetIds:
           - !Ref InternalVPCPrivateSubnet1
   EsUserPoolRoleAttachment:
