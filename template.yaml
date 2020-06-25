@@ -12,7 +12,8 @@ Parameters:
     Description: Environment name used for API Gateway Stage names (injected by Stackery at deployment time)
   AmazonLinux2ImageId:
     Type: AWS::EC2::Image::Id
-    Description: Latest Amazon Linux 2 AMI ID (injected by Stackery at deployment time)
+    Description: Latest Amazon Linux 2 AMI ID (injected by Stackery at deployment time) #amzn-ami-vpc-nat-2018.03
+    Default: ami-03c91470bf330c786
   ApplicationPrefix:
     Type: String
     AllowedPattern: '^[a-z0-9]*$'
