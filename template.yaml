@@ -608,15 +608,13 @@ Resources:
         Statement:
           - Effect: Allow
             Principal:
-              AWS:
-                - !GetAtt EsAuthRole.Arn
+              AWS: !GetAtt EsAuthRole.Arn
             Action:
               - es:ESHttpGet
               - es:ESHttpPut
               - es:ESHttpPost
               - es:ESHttpDelete
-            Resource:
-              - !Sub arn:aws:es:${AWS::Region}:${AWS::AccountId}::domain/${ApplicationPrefix}/*
+            Resource: !Sub arn:aws:es:${AWS::Region}:${AWS::AccountId}::domain/${ApplicationPrefix}/*
       DomainName: !Ref ApplicationPrefix
       EBSOptions:
         EBSEnabled: true
@@ -627,8 +625,7 @@ Resources:
       CognitoOptions:
         Enabled: true
         IdentityPoolId: !Ref EsIdentityPool
-        RoleArn:
-          - !GetAtt EsRole.Arn
+        RoleArn: !GetAtt EsRole.Arn
         UserPoolId: !Ref EsUserPool
       VPCOptions:
         SecurityGroupIds:
@@ -641,14 +638,11 @@ Resources:
     Properties:
       IdentityPoolId: !Ref EsIdentityPool
       Roles:
-        authenticated:
-          - !GetAtt EsAuthRole.Arn
+        authenticated: !GetAtt EsAuthRole.Arn
 Outputs:
   createUserUrl:
     Description: Create a new user in the user pool here.
-    Value:
-      - !Sub 'https://${AWS::Region}.console.aws.amazon.com/cognito/users?region=${AWS::Region}#/pool/${EsUserPool}/users'
+    Value: !Sub 'https://${AWS::Region}.console.aws.amazon.com/cognito/users?region=${AWS::Region}#/pool/${EsUserPool}/users'
   kibanaUrl:
     Description: Access Kibana via this URL.
-    Value:
-      - !Sub https://${EsSearchDomain.DomainEndpoint}/_plugin/kibana/
+    Value: !Sub https://${EsSearchDomain.DomainEndpoint}/_plugin/kibana/
