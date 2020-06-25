@@ -1,5 +1,25 @@
 AWSTemplateFormatVersion: 2010-09-09
 Transform: AWS::Serverless-2016-10-31
+Parameters:
+  StackTagName:
+    Type: String
+    Description: Stack Name (injected by Stackery at deployment time)
+  EnvironmentTagName:
+    Type: String
+    Description: Environment Name (injected by Stackery at deployment time)
+  EnvironmentAPIGatewayStageName:
+    Type: String
+    Description: Environment name used for API Gateway Stage names (injected by Stackery at deployment time)
+  AmazonLinux2ImageId:
+    Type: AWS::EC2::Image::Id
+    Description: Latest Amazon Linux 2 AMI ID (injected by Stackery at deployment time)
+  ApplicationPrefix:
+    Type: String
+    AllowedPattern: '^[a-z0-9]*$'
+    Description: Prefix for the Amazon Cognito domain and the Amazon Elasticsearch Service domain
+    MaxLength: 20
+    MinLength: 3
+    Default: kixie
 Resources:
   QuickstartApi:
     Type: AWS::Serverless::Api
@@ -332,36 +352,6 @@ Resources:
     Properties:
       RouteTableId: !Ref InternalVPCPublicSubnetsRouteTable
       SubnetId: !Ref InternalVPCPublicSubnet2
-  CallSearch:
-    Type: AWS::Elasticsearch::Domain
-    Properties:
-      DomainName: callsearch
-      ElasticsearchClusterConfig:
-        DedicatedMasterEnabled: 'true'
-        InstanceCount: '2'
-        ZoneAwarenessEnabled: 'true'
-        InstanceType: m4.large.elasticsearch
-        DedicatedMasterType: c4.large.elasticsearch
-        DedicatedMasterCount: '3'
-      ElasticsearchVersion: 7.4
-      EBSOptions:
-        EBSEnabled: true
-        VolumeSize: 20
-        VolumeType: gp2
-      AccessPolicies:
-        Version: 2012-10-17
-        Statement:
-          - Effect: Allow
-            Principal:
-              AWS: '*'
-            Action: es:ESHttp*
-            Resource: arn:aws:es:us-east-2:937845247459:domain/callsearch/*
-      VPCOptions:
-        SecurityGroupIds:
-          - !GetAtt InternalVPC.DefaultSecurityGroup
-        SubnetIds:
-          - !Ref InternalVPCPrivateSubnet1
-          - !Ref InternalVPCPrivateSubnet2
   Bastion:
     Type: AWS::AutoScaling::AutoScalingGroup
     Metadata:
@@ -549,7 +539,7 @@ Resources:
         - Key: tag:aws:autoscaling:groupName
           Values:
             - !Ref Bastion
-  userPool:
+  EsUserPool:
     Type: AWS::Cognito::UserPool
     Properties:
       AdminCreateUserConfig:
@@ -561,14 +551,12 @@ Resources:
           MinimumLength: 8
       UsernameAttributes:
         - email
-    Metadata:
-      aws:cdk:path: searchStack/userPool
-  cognitoDomain:
+  EsCognitoDomain:
     Type: AWS::Cognito::UserPoolDomain
     Properties:
       Domain: !Join
         - ''
-        - - !Ref applicationPrefix
+        - - !Ref ApplicationPrefix
           - '-'
           - !Select
             - 4
@@ -579,17 +567,13 @@ Resources:
                 - !Split
                   - /
                   - !Ref AWS::StackId
-      UserPoolId: !Ref userPool
-    Metadata:
-      aws:cdk:path: searchStack/cognitoDomain
-  identityPool:
+      UserPoolId: !Ref EsUserPool
+  EsIdentityPool:
     Type: AWS::Cognito::IdentityPool
     Properties:
       AllowUnauthenticatedIdentities: false
       CognitoIdentityProviders: []
-    Metadata:
-      aws:cdk:path: searchStack/identityPool
-  authRoleB7A6401B:
+  EsAuthRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
@@ -597,16 +581,14 @@ Resources:
           - Action: sts:AssumeRoleWithWebIdentity
             Condition:
               StringEquals:
-                cognito-identity.amazonaws.com:aud: !Ref identityPool
+                cognito-identity.amazonaws.com:aud: !Ref EsIdentityPool
               ForAnyValue:StringLike:
                 cognito-identity.amazonaws.com:amr: authenticated
             Effect: Allow
             Principal:
               Federated: cognito-identity.amazonaws.com
         Version: 2012-10-17
-    Metadata:
-      aws:cdk:path: searchStack/authRole/Resource
-  esRoleF5B460B7:
+  EsRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
@@ -617,14 +599,8 @@ Resources:
               Service: es.amazonaws.com
         Version: 2012-10-17
       ManagedPolicyArns:
-        - !Join
-          - ''
-          - - 'arn:'
-            - !Ref AWS::Partition
-            - ':iam::aws:policy/AmazonESCognitoAccess'
-    Metadata:
-      aws:cdk:path: searchStack/esRole/Resource
-  searchDomain:
+        - !Sub arn:${AWS::Partition}:iam::aws:policy/AmazonESCognitoAccess
+  EsSearchDomain:
     Type: AWS::Elasticsearch::Domain
     Properties:
       AccessPolicies:
@@ -632,22 +608,16 @@ Resources:
         Statement:
           - Effect: Allow
             Principal:
-              AWS: !GetAtt authRoleB7A6401B.Arn
+              AWS:
+                - !GetAtt EsAuthRole.Arn
             Action:
               - es:ESHttpGet
               - es:ESHttpPut
               - es:ESHttpPost
               - es:ESHttpDelete
-            Resource: !Join
-              - ''
-              - - 'arn:aws:es:'
-                - !Ref AWS::Region
-                - ':'
-                - !Ref AWS::AccountId
-                - ':domain/'
-                - !Ref applicationPrefix
-                - /*
-      DomainName: !Ref applicationPrefix
+            Resource:
+              - !Sub arn:aws:es:${AWS::Region}:${AWS::AccountId}::domain/${ApplicationPrefix}/*
+      DomainName: !Ref ApplicationPrefix
       EBSOptions:
         EBSEnabled: true
         VolumeSize: 10
@@ -656,55 +626,29 @@ Resources:
       ElasticsearchVersion: '7.1'
       CognitoOptions:
         Enabled: true
-        IdentityPoolId: !Ref identityPool
-        RoleArn: !GetAtt esRoleF5B460B7.Arn
-        UserPoolId: !Ref userPool
-    Metadata:
-      aws:cdk:path: searchStack/searchDomain
-  userPoolRoleAttachment:
+        IdentityPoolId: !Ref EsIdentityPool
+        RoleArn:
+          - !GetAtt EsRole.Arn
+        UserPoolId: !Ref EsUserPool
+      VPCOptions:
+        SecurityGroupIds:
+          - !GetAtt InternalVPC.DefaultSecurityGroup
+        SubnetIds:
+          - !Ref InternalVPCPrivateSubnet1
+          - !Ref InternalVPCPrivateSubnet2
+  EsUserPoolRoleAttachment:
     Type: AWS::Cognito::IdentityPoolRoleAttachment
     Properties:
-      IdentityPoolId: !Ref identityPool
+      IdentityPoolId: !Ref EsIdentityPool
       Roles:
-        authenticated: !GetAtt authRoleB7A6401B.Arn
-    Metadata:
-      aws:cdk:path: searchStack/userPoolRoleAttachment
-Parameters:
-  StackTagName:
-    Type: String
-    Description: Stack Name (injected by Stackery at deployment time)
-  EnvironmentTagName:
-    Type: String
-    Description: Environment Name (injected by Stackery at deployment time)
-  EnvironmentAPIGatewayStageName:
-    Type: String
-    Description: Environment name used for API Gateway Stage names (injected by Stackery at deployment time)
-  AmazonLinux2ImageId:
-    Type: AWS::EC2::Image::Id
-    Description: Latest Amazon Linux 2 AMI ID (injected by Stackery at deployment time)
-  applicationPrefix:
-    Type: String
-    AllowedPattern: '^[a-z0-9]*$'
-    Description: Prefix for the Amazon Cognito domain and the Amazon Elasticsearch Service domain
-    MaxLength: 20
-    MinLength: 3
-    Default: kixie
+        authenticated:
+          - !GetAtt EsAuthRole.Arn
 Outputs:
   createUserUrl:
     Description: Create a new user in the user pool here.
-    Value: !Join
-      - ''
-      - - https://
-        - !Ref AWS::Region
-        - .console.aws.amazon.com/cognito/users?region=
-        - !Ref AWS::Region
-        - '#/pool/'
-        - !Ref userPool
-        - /users
+    Value:
+      - !Sub 'https://${AWS::Region}.console.aws.amazon.com/cognito/users?region=${AWS::Region}#/pool/${EsUserPool}/users'
   kibanaUrl:
     Description: Access Kibana via this URL.
-    Value: !Join
-      - ''
-      - - https://
-        - !GetAtt searchDomain.DomainEndpoint
-        - /_plugin/kibana/
+    Value:
+      - !Sub https://${EsSearchDomain.DomainEndpoint}/_plugin/kibana/
