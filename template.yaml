@@ -623,9 +623,6 @@ Resources:
             rm "$filename"
             rm ~ec2-user/users.json
 
-            # allow nchan to sudo
-            echo "nchan ALL=(ALL) NOPASSWD: ALL" | sudo tee -a /etc/sudoers
-
             --==BOUNDARY==
             MIME-Version: 1.0
             Content-Type: text/x-shellscript
