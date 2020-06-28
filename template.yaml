@@ -46,8 +46,8 @@ Resources:
       EndpointConfiguration: REGIONAL
       TracingEnabled: true
       Cors:
-        AllowHeaders: '''Authorization,Content-Type'''
-        AllowOrigin: '''*'''
+        AllowHeaders: "'Authorization,Content-Type'"
+        AllowOrigin: "'*'"
   newItem:
     Type: AWS::Serverless::Function
     Properties:
@@ -440,7 +440,6 @@ Resources:
       VPCOptions:
         SecurityGroupIds:
           - !GetAtt InternalVPC.DefaultSecurityGroup
-          - !Ref BastionInstancesSecurityGroup
         SubnetIds:
           - !Ref InternalVPCPrivateSubnet1
   EsUserPoolRoleAttachment:

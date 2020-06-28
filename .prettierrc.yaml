@@ -1,0 +1,8 @@
+tabWidth: 4
+singleQuote: true
+overrides:
+  - files:
+      - '*.yaml'
+      - '*.json'
+    options:
+      tabWidth: 2
