@@ -1,85 +1,65 @@
 {
-    "resource": "/newItems",
-    "path": "/newItems",
+  "resource": "/newItems",
+  "path": "/newItems",
+  "httpMethod": "POST",
+  "headers": {
+    "Accept": "*/*",
+    "Accept-Encoding": "gzip, deflate, br",
+    "Content-Type": "application/json",
+    "Host": "ymar1hjmad.execute-api.us-east-2.amazonaws.com",
+    "Postman-Token": "3a4596f3-ab8a-4f08-9cdf-ddb15ac402a5",
+    "User-Agent": "PostmanRuntime/7.25.0",
+    "X-Amzn-Trace-Id": "Root=1-5ef2c5ee-7c4b9af9f6535827261c3325",
+    "X-Forwarded-For": "107.184.145.46",
+    "X-Forwarded-Port": "443",
+    "X-Forwarded-Proto": "https"
+  },
+  "multiValueHeaders": {
+    "Accept": ["*/*"],
+    "Accept-Encoding": ["gzip, deflate, br"],
+    "Content-Type": ["application/json"],
+    "Host": ["ymar1hjmad.execute-api.us-east-2.amazonaws.com"],
+    "Postman-Token": ["3a4596f3-ab8a-4f08-9cdf-ddb15ac402a5"],
+    "User-Agent": ["PostmanRuntime/7.25.0"],
+    "X-Amzn-Trace-Id": ["Root=1-5ef2c5ee-7c4b9af9f6535827261c3325"],
+    "X-Forwarded-For": ["107.184.145.46"],
+    "X-Forwarded-Port": ["443"],
+    "X-Forwarded-Proto": ["https"]
+  },
+  "queryStringParameters": null,
+  "multiValueQueryStringParameters": null,
+  "pathParameters": null,
+  "stageVariables": null,
+  "requestContext": {
+    "resourceId": "wms5pb",
+    "resourcePath": "/newItems",
     "httpMethod": "POST",
-    "headers": {
-        "Accept": "*/*",
-        "Accept-Encoding": "gzip, deflate, br",
-        "Content-Type": "application/json",
-        "Host": "ymar1hjmad.execute-api.us-east-2.amazonaws.com",
-        "Postman-Token": "3a4596f3-ab8a-4f08-9cdf-ddb15ac402a5",
-        "User-Agent": "PostmanRuntime/7.25.0",
-        "X-Amzn-Trace-Id": "Root=1-5ef2c5ee-7c4b9af9f6535827261c3325",
-        "X-Forwarded-For": "107.184.145.46",
-        "X-Forwarded-Port": "443",
-        "X-Forwarded-Proto": "https"
+    "extendedRequestId": "OnPdSEE-iYcFTKA=",
+    "requestTime": "24/Jun/2020:03:18:06 +0000",
+    "path": "/Stage/newItems",
+    "accountId": "937845247459",
+    "protocol": "HTTP/1.1",
+    "stage": "Stage",
+    "domainPrefix": "ymar1hjmad",
+    "requestTimeEpoch": 1592968686535,
+    "requestId": "7fa3e887-0e5e-4c52-a0f5-a70d212e11e8",
+    "identity": {
+      "cognitoIdentityPoolId": null,
+      "accountId": null,
+      "cognitoIdentityId": null,
+      "caller": null,
+      "sourceIp": "107.184.145.46",
+      "principalOrgId": null,
+      "accessKey": null,
+      "cognitoAuthenticationType": null,
+      "cognitoAuthenticationProvider": null,
+      "userArn": null,
+      "userAgent": "PostmanRuntime/7.25.0",
+      "user": null
     },
-    "multiValueHeaders": {
-        "Accept": [
-            "*/*"
-        ],
-        "Accept-Encoding": [
-            "gzip, deflate, br"
-        ],
-        "Content-Type": [
-            "application/json"
-        ],
-        "Host": [
-            "ymar1hjmad.execute-api.us-east-2.amazonaws.com"
-        ],
-        "Postman-Token": [
-            "3a4596f3-ab8a-4f08-9cdf-ddb15ac402a5"
-        ],
-        "User-Agent": [
-            "PostmanRuntime/7.25.0"
-        ],
-        "X-Amzn-Trace-Id": [
-            "Root=1-5ef2c5ee-7c4b9af9f6535827261c3325"
-        ],
-        "X-Forwarded-For": [
-            "107.184.145.46"
-        ],
-        "X-Forwarded-Port": [
-            "443"
-        ],
-        "X-Forwarded-Proto": [
-            "https"
-        ]
-    },
-    "queryStringParameters": null,
-    "multiValueQueryStringParameters": null,
-    "pathParameters": null,
-    "stageVariables": null,
-    "requestContext": {
-        "resourceId": "wms5pb",
-        "resourcePath": "/newItems",
-        "httpMethod": "POST",
-        "extendedRequestId": "OnPdSEE-iYcFTKA=",
-        "requestTime": "24/Jun/2020:03:18:06 +0000",
-        "path": "/Stage/newItems",
-        "accountId": "937845247459",
-        "protocol": "HTTP/1.1",
-        "stage": "Stage",
-        "domainPrefix": "ymar1hjmad",
-        "requestTimeEpoch": 1592968686535,
-        "requestId": "7fa3e887-0e5e-4c52-a0f5-a70d212e11e8",
-        "identity": {
-            "cognitoIdentityPoolId": null,
-            "accountId": null,
-            "cognitoIdentityId": null,
-            "caller": null,
-            "sourceIp": "107.184.145.46",
-            "principalOrgId": null,
-            "accessKey": null,
-            "cognitoAuthenticationType": null,
-            "cognitoAuthenticationProvider": null,
-            "userArn": null,
-            "userAgent": "PostmanRuntime/7.25.0",
-            "user": null
-        },
-        "domainName": "ymar1hjmad.execute-api.us-east-2.amazonaws.com",
-        "apiId": "ymar1hjmad"
-    },
-    "body": "{ \"v\": 2, \"businessid\": \"157\", \"email\": \"nchan@kixie.com\", \"target\": \"18052523111\", \"eventname\": \"call\", \"apikey\": \"ef918d1f-ded8-11e4-9ccc-22000ac88c3a\", \"targetExt\": \"123\", \"displayname\": \"Super Cool\" }",
-    "isBase64Encoded": false
+    "domainName": "ymar1hjmad.execute-api.us-east-2.amazonaws.com",
+    "apiId": "ymar1hjmad"
+  },
+  "body": "{ \"v\": 2 }",
+  "isBase64Encoded": false
 }
