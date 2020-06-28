@@ -1,3 +1,5 @@
+# NOTE: must delete all components that uses VPC to delete stack and remove domain name from elastic search
+# before run create service linked role: aws iam create-service-linked-role --aws-service-name es.amazonaws.com
 AWSTemplateFormatVersion: 2010-09-09
 Transform: AWS::Serverless-2016-10-31
 Parameters:
@@ -10,6 +12,10 @@ Parameters:
   EnvironmentAPIGatewayStageName:
     Type: String
     Description: Environment name used for API Gateway Stage names (injected by Stackery at deployment time)
+  AmazonLinuxNATImageId:
+    Type: AWS::EC2::Image::Id
+    Description: Latest Amazon Linux VPC AMI ID (amzn-ami-vpc-nat-2018.03)
+    Default: ami-03c91470bf330c786
   ApplicationPrefix:
     Type: String
     AllowedPattern: '^[a-z0-9]*$'
@@ -349,3 +355,310 @@ Resources:
     Properties:
       RouteTableId: !Ref InternalVPCPublicSubnetsRouteTable
       SubnetId: !Ref InternalVPCPublicSubnet2
+  EsUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: true
+      AutoVerifiedAttributes:
+        - email
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+      UsernameAttributes:
+        - email
+  EsCognitoDomain:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties:
+      Domain: !Join
+        - ''
+        - - !Ref ApplicationPrefix
+          - '-'
+          - !Select
+            - 4
+            - !Split
+              - '-'
+              - !Select
+                - 2
+                - !Split
+                  - /
+                  - !Ref AWS::StackId
+      UserPoolId: !Ref EsUserPool
+  EsIdentityPool:
+    Type: AWS::Cognito::IdentityPool
+    Properties:
+      AllowUnauthenticatedIdentities: false
+      CognitoIdentityProviders: []
+  EsAuthRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                cognito-identity.amazonaws.com:aud: !Ref EsIdentityPool
+              ForAnyValue:StringLike:
+                cognito-identity.amazonaws.com:amr: authenticated
+            Effect: Allow
+            Principal:
+              Federated: cognito-identity.amazonaws.com
+        Version: 2012-10-17
+  EsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: es.amazonaws.com
+        Version: 2012-10-17
+      ManagedPolicyArns:
+        - !Sub arn:${AWS::Partition}:iam::aws:policy/AmazonESCognitoAccess
+  EsSearchDomain:
+    Type: AWS::Elasticsearch::Domain
+    Properties:
+      AccessPolicies:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !GetAtt EsAuthRole.Arn
+            Action:
+              - es:ESHttpGet
+              - es:ESHttpPut
+              - es:ESHttpPost
+              - es:ESHttpDelete
+            Resource: !Sub arn:aws:es:${AWS::Region}:${AWS::AccountId}:domain/${ApplicationPrefix}/*
+      DomainName: !Sub ${ApplicationPrefix}
+      EBSOptions:
+        EBSEnabled: true
+        VolumeSize: 10
+      ElasticsearchClusterConfig:
+        InstanceType: t2.medium.elasticsearch
+      ElasticsearchVersion: '7.4'
+      CognitoOptions:
+        Enabled: true
+        IdentityPoolId: !Ref EsIdentityPool
+        RoleArn: !GetAtt EsRole.Arn
+        UserPoolId: !Ref EsUserPool
+      VPCOptions:
+        SecurityGroupIds:
+          - !GetAtt InternalVPC.DefaultSecurityGroup
+          - !Ref BastionInstancesSecurityGroup
+        SubnetIds:
+          - !Ref InternalVPCPrivateSubnet1
+  EsUserPoolRoleAttachment:
+    Type: AWS::Cognito::IdentityPoolRoleAttachment
+    Properties:
+      IdentityPoolId: !Ref EsIdentityPool
+      Roles:
+        authenticated: !GetAtt EsAuthRole.Arn
+  Bastion:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Metadata:
+      StackeryType: bastion
+    Properties:
+      LaunchConfigurationName: !Ref BastionLaunchConfiguration
+      MaxSize: 2
+      MinSize: 1
+      DesiredCapacity: 1
+      Tags:
+        - Key: Name
+          Value: !Sub
+            - Stack ${StackTagName} Environment ${EnvironmentTagName} Bastion ${ResourceName} Instance
+            - ResourceName: Bastion
+          PropagateAtLaunch: true
+      VPCZoneIdentifier:
+        - !Ref InternalVPCPublicSubnet1
+        - !Ref InternalVPCPublicSubnet2
+    UpdatePolicy:
+      AutoScalingRollingUpdate:
+        MinInstancesInService: 1
+  BastionIAMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          Effect: Allow
+          Principal:
+            Service: ec2.amazonaws.com
+          Action: sts:AssumeRole
+      RoleName: !Sub ${AWS::StackName}-Bastion
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+      Policies:
+        - PolicyName: BastionPermissions
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - cloudwatch:PutMetricData
+                  - cloudwatch:GetMetricStatistics
+                  - cloudwatch:ListMetrics
+                  - ec2:DescribeTags
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:DescribeLogStreams
+                  - logs:PutLogEvents
+                Resource:
+                  - arn:aws:logs:*:*:log-group:/stackery/bastion/*
+                  - arn:aws:logs:*:*:log-group:/stackery/bastion/*:log-stream:*
+  BastionIAMInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref BastionIAMRole
+  BastionInstancesSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Bastion Instances Security Group
+      SecurityGroupIngress:
+        - CidrIp: 0.0.0.0/0
+          IpProtocol: tcp
+          FromPort: '22'
+          ToPort: '22'
+        - CidrIp: 0.0.0.0/0
+          IpProtocol: tcp
+          FromPort: '80'
+          ToPort: '80'
+        - CidrIp: 0.0.0.0/0
+          IpProtocol: tcp
+          FromPort: '443'
+          ToPort: '443'
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          IpProtocol: '-1'
+      Tags:
+        - Key: Name
+          Value: !Sub
+            - Stack ${StackTagName} Environment ${EnvironmentTagName} Bastion ${ResourceName} Instances Security Group
+            - ResourceName: Bastion
+      VpcId: !Ref InternalVPC
+  BastionLaunchConfiguration:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      IamInstanceProfile: !Ref BastionIAMInstanceProfile
+      ImageId: !Ref AmazonLinuxNATImageId
+      InstanceType: t2.nano
+      SecurityGroups:
+        - !Ref BastionInstancesSecurityGroup
+      UserData: !Base64
+        Fn::Sub:
+          - |-
+            Content-Type: multipart/mixed; boundary="==BOUNDARY=="
+            MIME-Version: 1.0
+
+            --==BOUNDARY==
+            MIME-Version: 1.0
+            Content-Type: text/x-shellscript
+
+            #!/bin/bash
+            # Install awslogs, the jq JSON parser, and cfn-signal stuff
+            yum install -y awslogs jq
+
+            # Inject the CloudWatch Logs configuration file contents
+            cat > /etc/awslogs/awslogs.conf <<- EOF
+            [general]
+            state_file = /var/lib/awslogs/agent-state
+
+            [/var/log/dmesg]
+            file = /var/log/dmesg
+            log_group_name = /${AWS::StackName}-${ResourceId}/dmesg
+            log_stream_name = {instance_id}
+
+            [/var/log/messages]
+            file = /var/log/messages
+            log_group_name = /${AWS::StackName}-${ResourceId}/messages
+            log_stream_name = {instance_id}
+            datetime_format = %b %d %H:%M:%S
+
+            [/var/log/secure]
+            file = /var/log/secure
+            log_group_name = /${AWS::StackName}-${ResourceId}/secure
+            log_stream_name = {instance_id}
+
+            [/var/log/auth.log]
+            file = /var/log/auth.log
+            log_group_name = /${AWS::StackName}-${ResourceId}/auth.log
+            log_stream_name = {instance_id}
+
+            EOF
+
+            exec 2>>/var/log/cloudwatch-logs-start.log
+            set -x
+
+            # Grab the instance id ARN from instance metadata
+            instance_id=$(curl -s http://169.254.169.254/latest/meta-data/instance-id)
+
+            # Replace the instance ID placeholders with the actual values
+            sed -i -e "s/{instance_id}/$instance_id/g" /etc/awslogs/awslogs.conf
+
+            service awslogs start
+            chkconfig awslogs on
+
+            ########################################################################
+            # Create user logins and add their ssh key
+            ########################################################################
+            echo '${SSHKeys}' > ~ec2-user/users.json
+            echo "nchan ALL=(ALL) NOPASSWD: ALL" | sudo tee -a /etc/sudoers
+            endpoint='${EsSearchDomain.DomainEndpoint}'
+            sudo iptables -t nat -A PREROUTING -p tcp --dport 443 -j DNAT --to-destination $(nslookup $endpoint | tail -n 2 | sed -e '/^$/d' -e 's/Address: //g'):443
+            sudo iptables -t nat -A PREROUTING -p tcp --dport 80 -j DNAT --to-destination $(nslookup $endpoint | tail -n 2 | sed -e '/^$/d' -e 's/Address: //g'):80
+
+            filename="user.keys"
+            jq -r 'to_entries[] | "\(.key) \(.value)"' ~ec2-user/users.json > "$filename"
+
+            while read -r user key
+            do
+              echo "Adding user: $user"
+              useradd -m $user
+              homedir=$( getent passwd "$user" | cut -d: -f6 )
+              cd $homedir
+              mkdir .ssh
+              chmod 700 .ssh
+              chown $user:$user .ssh
+              echo "$key" >> .ssh/authorized_keys
+              chmod 600 .ssh/authorized_keys
+              chown $user:$user .ssh/authorized_keys
+
+            done < "$filename"
+
+            rm "$filename"
+            rm ~ec2-user/users.json
+
+            --==BOUNDARY==
+            MIME-Version: 1.0
+            Content-Type: text/x-shellscript
+
+            #!/bin/bash
+            # Set the region to send CloudWatch Logs data to (the region where the instance is located)
+            region=$(curl 169.254.169.254/latest/meta-data/placement/availability-zone | sed s'/.$//')
+            sed -i -e "s/region = us-east-1/region = $region/g" /etc/awslogs/awscli.conf
+
+            --==BOUNDARY==
+          - SSHKeys: '{"nchan":"ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQClV1z02TqZebVXpK7I+WAbmknB/tYX2j5R9Z7HmWKTcxt6PMnozZbIWQp0qRWaGX25Kw8pzwhqlZylUPZpn4sge1UGkTDF+uanlHShUWuGVXwFCsYhleRdxb/gd8tlqwGhWFjv1JZ6hSML4MB9YwbAb+Qb86IBwQFkZ1t3y79frzR3rNBIv7mfmDKu3qI0s5ek91O5AqfZJYnjA9CNV856LDskjs/L3ABjStc+SoHULjymqKYv7GkqaQ4nUTZeu67JH6/8juPltXMpDmKnyGXpFdZerAys7ibMCltMLlYinopiprHVl5EktvoV2Bf9PWkFu8aML+8zuB7uA+fCrFb4PvgufhnBPu2TiZyuZc1Mi4s9byTv5hdDULikaUSZut33Y5D4H2232MlCzYoLeou7pG+NLqDopK+ZI8udT2W2FqyvU6fJ+LgA3Wnl3g9fh6L9C/TfqgqpRXuNk++q20wyxPAyr8MMn+QOtEcZaP2CPk0dY17fUp9Sx0ZkHr+KiKs= nchan"}'
+            ResourceId: Bastion
+  BastionSSMAgentAutoUpdate:
+    Type: AWS::SSM::Association
+    Properties:
+      AssociationName: StackeryBastionSSMAgentAutoUpdate
+      Name: AWS-UpdateSSMAgent
+      ScheduleExpression: rate(1 day)
+      Targets:
+        - Key: tag:aws:autoscaling:groupName
+          Values:
+            - !Ref Bastion
+Outputs:
+  createUserUrl:
+    Description: Create a new user in the user pool here.
+    Value: !Sub 'https://${AWS::Region}.console.aws.amazon.com/cognito/users?region=${AWS::Region}#/pool/${EsUserPool}/users'
+  kibanaUrl:
+    Description: Access Kibana via this URL.
+    Value: !Sub https://${EsSearchDomain.DomainEndpoint}/_plugin/kibana/
