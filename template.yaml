@@ -23,6 +23,15 @@ Parameters:
     MaxLength: 20
     MinLength: 3
     Default: kixie
+  ServerCertificateArn:
+    Type: String
+    Description: Arn for client certificate
+    Default: arn:aws:acm:us-east-1:937845247459:certificate/ae734dc8-5c71-481b-8e30-4250aaaada54
+  ClientCertificateArn:
+    Type: String
+    Description: Arn for client certificate
+    Default: arn:aws:acm:us-east-1:937845247459:certificate/e9f1c21b-1f8b-4eb4-87f6-d53fd7bd1bcd
+
 Resources:
   QuickstartApi:
     Type: AWS::Serverless::Api
@@ -655,6 +664,51 @@ Resources:
         - Key: tag:aws:autoscaling:groupName
           Values:
             - !Ref Bastion
+
+  # Create ClientVPN Endpoint using certification-based authentication
+  ClientVpnEndpoint:
+    Type: AWS::EC2::ClientVpnEndpoint
+    Properties:
+      AuthenticationOptions:
+        - Type: certificate-authentication
+          MutualAuthentication:
+            ClientRootCertificateChainArn: !Ref ClientCertificateArn
+      ClientCidrBlock: '10.2.4.0/22'
+      ConnectionLogOptions:
+        Enabled: false
+      Description: 'Client VPN Endpoint'
+      DnsServers:
+        - '10.1.0.2'
+      ServerCertificateArn: !Ref ServerCertificateArn
+      # SplitTunnel: true
+      TagSpecifications:
+        - ResourceType: 'client-vpn-endpoint'
+          Tags:
+            - Key: 'Purpose'
+              Value: 'Production'
+      TransportProtocol: 'udp'
+      VpcId: !Ref InternalVPC
+
+  ClientVpnNetworkAssociationSubnet1:
+    Type: 'AWS::EC2::ClientVpnTargetNetworkAssociation'
+    Properties:
+      ClientVpnEndpointId: !Ref ClientVpnEndpoint
+      SubnetId: !Ref InternalVPCPublicSubnet1
+
+  ClientVpnNetworkAssociationSubnet2:
+    Type: 'AWS::EC2::ClientVpnTargetNetworkAssociation'
+    Properties:
+      ClientVpnEndpointId: !Ref ClientVpnEndpoint
+      SubnetId: !Ref InternalVPCPublicSubnet2
+
+  ClientVpnAuthRuleVPC:
+    Type: 'AWS::EC2::ClientVpnAuthorizationRule'
+    Properties:
+      ClientVpnEndpointId: !Ref ClientVpnEndpoint
+      AuthorizeAllGroups: true
+      TargetNetworkCidr: '10.1.0.0/16'
+      Description: 'Ingress from VPC'
+
 Outputs:
   createUserUrl:
     Description: Create a new user in the user pool here.
