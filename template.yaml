@@ -1,5 +1,3 @@
-# NOTE: must delete all components that uses VPC to delete stack and remove domain name from elastic search
-# before run create service linked role: aws iam create-service-linked-role --aws-service-name es.amazonaws.com
 AWSTemplateFormatVersion: 2010-09-09
 Transform: AWS::Serverless-2016-10-31
 Parameters:
@@ -31,7 +29,6 @@ Parameters:
     Type: String
     Description: Arn for client certificate
     Default: arn:aws:acm:us-east-1:937845247459:certificate/e9f1c21b-1f8b-4eb4-87f6-d53fd7bd1bcd
-
 Resources:
   QuickstartApi:
     Type: AWS::Serverless::Api
@@ -61,8 +58,8 @@ Resources:
       EndpointConfiguration: REGIONAL
       TracingEnabled: true
       Cors:
-        AllowHeaders: "'Authorization,Content-Type'"
-        AllowOrigin: "'*'"
+        AllowHeaders: '''Authorization,Content-Type'''
+        AllowOrigin: '''*'''
   newItem:
     Type: AWS::Serverless::Function
     Properties:
@@ -133,6 +130,8 @@ Resources:
         SubnetIds:
           - !Ref InternalVPCPrivateSubnet1
           - !Ref InternalVPCPrivateSubnet2
+      Layers:
+        - !Ref CommonLib
   Items:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -664,8 +663,6 @@ Resources:
         - Key: tag:aws:autoscaling:groupName
           Values:
             - !Ref Bastion
-
-  # Create ClientVPN Endpoint using certification-based authentication
   ClientVpnEndpoint:
     Type: AWS::EC2::ClientVpnEndpoint
     Properties:
@@ -673,42 +670,45 @@ Resources:
         - Type: certificate-authentication
           MutualAuthentication:
             ClientRootCertificateChainArn: !Ref ClientCertificateArn
-      ClientCidrBlock: '10.2.4.0/22'
+      ClientCidrBlock: 10.2.4.0/22
       ConnectionLogOptions:
         Enabled: false
-      Description: 'Client VPN Endpoint'
+      Description: Client VPN Endpoint
       DnsServers:
-        - '10.1.0.2'
+        - 10.1.0.2
       ServerCertificateArn: !Ref ServerCertificateArn
-      # SplitTunnel: true
       TagSpecifications:
-        - ResourceType: 'client-vpn-endpoint'
+        - ResourceType: client-vpn-endpoint
           Tags:
-            - Key: 'Purpose'
-              Value: 'Production'
-      TransportProtocol: 'udp'
+            - Key: Purpose
+              Value: Production
+      TransportProtocol: udp
       VpcId: !Ref InternalVPC
-
   ClientVpnNetworkAssociationSubnet1:
-    Type: 'AWS::EC2::ClientVpnTargetNetworkAssociation'
+    Type: AWS::EC2::ClientVpnTargetNetworkAssociation
     Properties:
       ClientVpnEndpointId: !Ref ClientVpnEndpoint
       SubnetId: !Ref InternalVPCPublicSubnet1
-
   ClientVpnNetworkAssociationSubnet2:
-    Type: 'AWS::EC2::ClientVpnTargetNetworkAssociation'
+    Type: AWS::EC2::ClientVpnTargetNetworkAssociation
     Properties:
       ClientVpnEndpointId: !Ref ClientVpnEndpoint
       SubnetId: !Ref InternalVPCPublicSubnet2
-
   ClientVpnAuthRuleVPC:
-    Type: 'AWS::EC2::ClientVpnAuthorizationRule'
+    Type: AWS::EC2::ClientVpnAuthorizationRule
     Properties:
       ClientVpnEndpointId: !Ref ClientVpnEndpoint
       AuthorizeAllGroups: true
-      TargetNetworkCidr: '10.1.0.0/16'
-      Description: 'Ingress from VPC'
-
+      TargetNetworkCidr: 10.1.0.0/16
+      Description: Ingress from VPC
+  CommonLib:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      Description: !Sub
+        - Stack ${StackTagName} Environment ${EnvironmentTagName} Layer ${ResourceName}
+        - ResourceName: CommonLib
+      ContentUri: src/Layer
+      RetentionPolicy: Retain
 Outputs:
   createUserUrl:
     Description: Create a new user in the user pool here.
